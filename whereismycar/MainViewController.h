@@ -21,6 +21,9 @@
 @property (nonatomic,assign) float latitud;
 @property (nonatomic,assign) float longitud;
 @property (nonatomic, retain) CLLocationManager *locationManager;
+
+
+
 - (IBAction)btImHere:(id)sender;
 
 @end

@@ -13,6 +13,10 @@
 
 @interface MainViewController ()
 
+-(void) setposition;
+
+
+
 @end
 
 @implementation MainViewController
@@ -38,7 +42,7 @@
     locationManager.distanceFilter = kCLDistanceFilterNone; // whenever we move
     locationManager.desiredAccuracy = kCLLocationAccuracyBest;// 100 m
     [locationManager startUpdatingLocation];
-    // while (!acabar);
+   
     
 }
 
@@ -63,11 +67,6 @@
     self.longitud=newLocation.coordinate.longitude;
     
     [locationManager stopUpdatingLocation];
-    
-    // [locationManager release];
-    
-    
-    // appDelegate.token = [[NSString alloc]initWithString:iden];
           AppDelegate *appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
         
     appDelegate.latitude=latitud;
@@ -82,12 +81,6 @@
     data.latitude=[NSNumber numberWithFloat:latitud];
     data.longitude=[NSNumber numberWithFloat:longitud];
     
-    Datos *data2 = (Datos *)[NSEntityDescription insertNewObjectForEntityForName:@"Datos" inManagedObjectContext:appDelegate.managedObjectContext];
-
-    data2.latitude=[NSNumber numberWithFloat:37.752801];
-    data2.longitude=[NSNumber numberWithFloat:-122.447548];
-
-    
     NSError *error = nil;
     
     if (![appDelegate.managedObjectContext save:&error]) {
@@ -96,8 +89,7 @@
         abort();
     }
     
-}
-
+ }
 
 
 

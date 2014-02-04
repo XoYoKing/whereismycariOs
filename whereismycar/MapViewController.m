@@ -6,15 +6,13 @@
 //  Copyright (c) 2013 Francisco Buitrago Pavon. All rights reserved.
 //
 #import <CoreLocation/CoreLocation.h>
-#import "DDAnnotation.h"
 #import "MapViewController.h"
 #import "AppDelegate.h"
 #import "Datos.h"
 #import "AFDSTAPIClient.h"
+#import "Utils.h"
 #import "AFJSONRequestOperation.h"
 #define ZOOM 100
-#define HANGAR_LATITUDE 41.60941f
-#define HANGAR_LONGITUDE -0.890064
 
 @interface MapViewController ()
 -(void)calculateRoute:(float)latitudOrigen longitudOringen:(float)longitudOringen;
@@ -91,7 +89,6 @@ bool ultimosParking = false;
 - (void) mapView:(MKMapView *) mapView didAddAnnotationViews:(NSArray *) views
 {
     //  [annotation setCoordinate:(location)];
-    NSLog(@"paso por didAddAnnotationViews");
     //[mapView selectAnnotation:[[mapView annotations] lastObject] animated:NO];
     
     
@@ -107,36 +104,15 @@ bool ultimosParking = false;
     
     [locationManager stopUpdatingLocation];
     if (ultimosParking){
-        if ([mapa.annotations count]>0){
-            NSArray *oldAnnotations=[self.mapa annotations];
-            [self.mapa removeAnnotations:oldAnnotations];
-        
-            
-        }
-        NSArray *oldOverlays=[self.mapa overlays];
-        [self.mapa removeOverlays:oldOverlays];
 
-        NSMutableArray *lastParkings = [[NSMutableArray alloc]initWithArray:[self getDataFromBBDD:5 lat:latitud longs:longitud]];
-        
-        for(int i =0; i<[lastParkings count];i++){
-            CLLocationCoordinate2D point ;
-            Datos *data =  [lastParkings objectAtIndex:i];
-            
-            float lat = [data.latitude floatValue];
-            
-            float longs = [data.longitude floatValue];
-            point.latitude=lat;
-            point.longitude=longs;
-            
-            [self pintar:lat longitudO:longs coche:true];
-            
-        }
         ultimosParking=false;
         
     }else{
         [self pintar:latitud longitudO:longitud coche:false];
         [self calculateRoute:latitud longitudOringen:longitud];
     }
+    
+    [locationManager stopUpdatingLocation];
         
     
 }
@@ -157,10 +133,7 @@ bool ultimosParking = false;
     theCoordinate.latitude= latitudO;
     theCoordinate.longitude= longitudO;
     
-    
-        
-    DDAnnotation* myAnnotation;
-    myAnnotation=[[DDAnnotation alloc] init];
+    MKPointAnnotation *myAnnotation = [[MKPointAnnotation alloc] init];
     myAnnotation.coordinate=theCoordinate;
     if (isCar)
         myAnnotation.title= NSLocalizedString(@"coche", @"");
@@ -169,6 +142,8 @@ bool ultimosParking = false;
     myAnnotation.subtitle = [NSString	stringWithFormat:@"%f %f",myAnnotation.coordinate.latitude, myAnnotation.coordinate.longitude];
     
     [mapa addAnnotation:myAnnotation];
+    
+    
     
     /*
      MKMapRect flyTo = MKMapRectNull;
@@ -287,10 +262,6 @@ bool ultimosParking = false;
     [parameters setObject:[NSString stringWithFormat:@"%f,%f",
                            latitudOrigen,longitudOringen]
                    forKey:@"origin"];
-    
-    
-    
-    
     AppDelegate *appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
     
     [self pintar:appDelegate.getlatitude longitudO:appDelegate.getlongitude coche:true];
@@ -353,22 +324,14 @@ bool ultimosParking = false;
 
 
 - (NSMutableArray *)getDataFromBBDD:(float)distance lat:(float)latitud2 longs:(float)longitud2{
+   
     AppDelegate *appDelegate = (AppDelegate *)[[UIApplication sharedApplication] delegate];
     NSFetchRequest *request = [[NSFetchRequest alloc] init];
     NSEntityDescription *entity = [NSEntityDescription entityForName:@"Datos" inManagedObjectContext:appDelegate.managedObjectContext];
     [request setEntity:entity];
-    
-    // NSPredicate *predicate = [NSPredicate predicateWithFormat:@"cdEstado==%d OR cdEstado==%d", ESTADO_CHEQUEADO,ESTADO_CANCELADA];
-    //    request.predicate=predicate;
-    
-    //NSSortDescriptor *sortDescriptor = [[NSSortDescriptor alloc] initWithKey:@"cdCodigo" ascending:NO selector:@selector(localizedStandardCompare:)];
-    //NSArray *sortDescriptors = [[NSArray alloc] initWithObjects:sortDescriptor, nil];
-    //[request setSortDescriptors:sortDescriptors];
-    
-    
-    
     NSError *error = nil;
     NSMutableArray *mutableFetchResults = [[appDelegate.managedObjectContext executeFetchRequest:request error:&error] mutableCopy];
+    
     if (mutableFetchResults == nil) {
         // Handle the error.
     }
@@ -382,16 +345,18 @@ bool ultimosParking = false;
         float lat = [data.latitude floatValue];
         
         float longs = [data.longitude floatValue];
-        double distancecal = [self isNear:latitud2 longitud1:longitud2 latitud2:lat longitud2:longs];
-        if (distance>[self isNear:latitud2 longitud1:longitud2 latitud2:lat longitud2:longs]){
-             NSLog(@"%f locationbd distnce", distancecal);
+     
+        
+        double distancecal = [self isNear:latitud2 longitud1:longitud2 latitud2:lat longitud2:longs]*10;
+        if (distance>[self isNear:latitud2 longitud1:longitud2 latitud2:lat longitud2:longs]*10){
+            //NSLog(@"%f %f locationbd latitude", lat,longs);
+            NSLog(@"%f locationbd latitude", distancecal);
+            
             [mutableResults addObject:data];
-        }else
-            NSLog(@"im not here");
-        
-        
-        NSLog(@"%f locationbd latitude", lat);
-        NSLog(@"%f locationbd longitude", longs);
+        }//else
+           // NSLog(@"im not here");
+           // NSLog(@"%f %f locationbd latitude", lat,longs);
+           // NSLog(@"%f locationbd longitude", longs);
     }
     return mutableResults;
 }
@@ -399,15 +364,36 @@ bool ultimosParking = false;
 
 
 - (IBAction)btlastParkings:(id)sender {
-    ultimosParking=true;
-    [self setPosition];
+    //ultimosParking=true;
+    if ([mapa.annotations count]>0){
+        NSArray *oldAnnotations=[self.mapa annotations];
+        [self.mapa removeAnnotations:oldAnnotations];        
+    }
+    NSArray *oldOverlays=[self.mapa overlays];
+    [self.mapa removeOverlays:oldOverlays];
+    
+    NSMutableArray *lastParkings = [[NSMutableArray alloc]initWithArray:[self getDataFromBBDD:5 lat:latitud longs:longitud]];
+    for(int i =0; i<[lastParkings count];i++){
+        CLLocationCoordinate2D point ;
+        Datos *data =  [lastParkings objectAtIndex:i];
+        
+        float lat = [data.latitude floatValue];
+        
+        float longs = [data.longitude floatValue];
+        point.latitude=lat;
+        point.longitude=longs;
+        
+        [self pintar:lat longitudO:longs coche:true];
+        
+    }
+    //[self setPosition];
     
 }
 
 - (IBAction)btRoute:(id)sender {
     if ([mapa.annotations count]>0){
-        NSArray *oldAnnotations=[self.mapa annotations];
-        [self.mapa removeAnnotations:oldAnnotations];
+    NSArray *oldAnnotations=[self.mapa annotations];
+    [self.mapa removeAnnotations:oldAnnotations];
         
         
     }
@@ -415,6 +401,21 @@ bool ultimosParking = false;
     [self.mapa removeOverlays:oldOverlays];
     [self setPosition];
     
+}
+
+- (MKAnnotationView *) mapView:(MKMapView *)mapView viewForAnnotation:(id <MKAnnotation>) annotation
+{
+    if ([[annotation title] isEqualToString:@"Current Location"]) {
+        return nil;
+    }
+    MKAnnotationView *annView = [[MKAnnotationView alloc ] initWithAnnotation:annotation reuseIdentifier:@"currentloc"];
+           annView.image = [ UIImage imageNamed:@"marker2.png" ];
+    UIButton *infoButton = [UIButton buttonWithType:UIButtonTypeDetailDisclosure];
+    [infoButton addTarget:self action:@selector(showDetailsView)
+         forControlEvents:UIControlEventTouchUpInside];
+    annView.rightCalloutAccessoryView = infoButton;
+    annView.canShowCallout = YES;
+    return annView;
 }
 
 @end
